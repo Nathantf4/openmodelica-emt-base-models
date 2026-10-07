@@ -1,0 +1,24 @@
+# Simulation outputs (regenerated locally by the batch scripts)
+Results/*.csv
+Results/verification.json
+Results/omc.log
+
+# OpenModelica build products (if you compile in-tree)
+*.o
+*.c
+*.h
+*.libs
+*.makefile
+*_info.json
+*_init.xml
+*.mat
+*.fmu
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db

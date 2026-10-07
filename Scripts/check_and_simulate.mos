@@ -1,0 +1,88 @@
+// Run from package root: omc Scripts/check_and_simulate.mos
+// Opening .mos in OMEdit does not execute it. Exit code is not a success gate.
+// The companion Python script additionally validates every numeric CSV cell.
+loadedMSL := loadModel(Modelica,{"4.1.0"},requireExactVersion=true);
+print(getErrorString());
+print("OpenModelica: "+getVersion()+"; Modelica: "+getVersion(Modelica)+"\n");
+mkdir("Results");
+loaded := loadFile("Models/EmtMachineBase.mo");
+print(getErrorString());
+checked := checkModel(EmtMachineBase);
+print(getErrorString());
+if not (loadedMSL and loaded and regexBool(checked,"completed successfully")) then
+  print("FAIL: EmtMachineBase; load/checkModel\n");
+  exit(1);
+end if;
+cd("Results");
+if regularFileExists("EmtMachineBase_res.csv") then
+  deleteFile("EmtMachineBase_res.csv");
+end if;
+result := simulate(EmtMachineBase,startTime=0,stopTime=3,numberOfIntervals=30000,tolerance=1e-6,outputFormat="csv",variableFilter="time|aimc[.](is.*|wMechanical|tauElectrical)|currentRMS[.]I|terminalVRMS|vTerminal.*|iSource.*|faultSwitch[.](i.*|control.*)|loadTorque[.]tau",fileNamePrefix="EmtMachineBase");
+simFile := result.resultFile;
+simMessages := result.messages;
+simSeconds := result.timeSimulation;
+print(simMessages);
+print(getErrorString());
+if simFile<>"" and regularFileExists("EmtMachineBase_res.csv") then
+  csvText := readFile("EmtMachineBase_res.csv");
+  good := regexBool(simMessages,"simulation finished successfully") and
+    regexBool(csvText,"\n3,[^\n]*\n?$") and
+    not regexBool(csvText,"(^|,)[-+]?(nan|inf|infinity)(,|$)",caseInsensitive=true);
+  if good then
+    print("PASS: EmtMachineBase; fresh CSV through 3 s; simulation wall="+String(simSeconds)+" s\n");
+  else
+    print("FAIL: EmtMachineBase; invalid result data\n");
+  end if;
+else
+  print("FAIL: EmtMachineBase; simulate returned no fresh result\n");
+end if;
+cd("..");
+loaded := loadFile("Models/EmtMachineBaseFault.mo");
+print(getErrorString());
+checked := checkModel(EmtMachineBaseFault);
+print(getErrorString());
+if not (loadedMSL and loaded and regexBool(checked,"completed successfully")) then
+  print("FAIL: EmtMachineBaseFault; load/checkModel\n");
+  exit(1);
+end if;
+cd("Results");
+if regularFileExists("EmtMachineBaseFault_res.csv") then
+  deleteFile("EmtMachineBaseFault_res.csv");
+end if;
+result := simulate(EmtMachineBaseFault,startTime=0,stopTime=3,numberOfIntervals=30000,tolerance=1e-6,outputFormat="csv",variableFilter="time|aimc[.](is.*|wMechanical|tauElectrical)|currentRMS[.]I|terminalVRMS|vTerminal.*|iSource.*|faultSwitch[.](i.*|control.*)|loadTorque[.]tau",fileNamePrefix="EmtMachineBaseFault");
+simFile := result.resultFile;
+simMessages := result.messages;
+simSeconds := result.timeSimulation;
+print(simMessages);
+print(getErrorString());
+if simFile<>"" and regularFileExists("EmtMachineBaseFault_res.csv") then
+  csvText := readFile("EmtMachineBaseFault_res.csv");
+  good := regexBool(simMessages,"simulation finished successfully") and
+    regexBool(csvText,"\n3,[^\n]*\n?$") and
+    not regexBool(csvText,"(^|,)[-+]?(nan|inf|infinity)(,|$)",caseInsensitive=true);
+  if good then
+    print("PASS: EmtMachineBaseFault; fresh CSV through 3 s; simulation wall="+String(simSeconds)+" s\n");
+  else
+    print("FAIL: EmtMachineBaseFault; invalid result data\n");
+  end if;
+else
+  print("FAIL: EmtMachineBaseFault; simulate returned no fresh result\n");
+end if;
+cd("..");
+loadedBroken := loadFile("Fixtures/BrokenMissingClass.mo");
+print(getErrorString());
+cd("Results");
+if regularFileExists("BrokenMissingClass_res.csv") then
+  deleteFile("BrokenMissingClass_res.csv");
+end if;
+brokenCheck := checkModel(BrokenMissingClass);
+brokenDiagnostic := getErrorString();
+brokenResult := simulate(BrokenMissingClass,stopTime=3,outputFormat="csv",fileNamePrefix="BrokenMissingClass");
+brokenDiagnostic := brokenDiagnostic+getErrorString();
+brokenFile := brokenResult.resultFile;
+if loadedBroken and not regexBool(brokenCheck,"completed successfully") and regexBool(brokenDiagnostic,"Class.*IdealClosingSwitc.*not found") and brokenFile=="" and not regularFileExists("BrokenMissingClass_res.csv") then
+  print("EXPECTED_FAIL: BrokenMissingClass; no CSV\n"+brokenDiagnostic);
+else
+  print("FAIL: BrokenMissingClass negative control\n"+brokenDiagnostic);
+end if;
+cd("..");
